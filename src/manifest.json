@@ -1,0 +1,12 @@
+{
+    "name": "Hive Mind",
+    "description": "Test helper extension for moodle",
+    "version": "1.0",
+    "manifest_version": 3,
+    "content_scripts": [
+        {
+            "matches": ["https://dl.nure.ua/*"],
+            "js": ["signalr.min.js", "main.js"]
+        }
+    ]
+  }
