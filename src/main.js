@@ -1,5 +1,4 @@
 const FORM_SELECTOR = "#responseform";
-const QUESTION_SELECTOR = "#responseform .formulation.clearfix";
 const ANSWERS_CONTAINER_SELECTOR = "#responseform .answer";
 const ANSWER_BUTTON_SELECTOR = "#responseform input[name=\"next\"]";
 const USER_NAME_SELECTOR = "#page-footer > div > div.row > div.col-md-8 > div.logininfo > a:nth-child(1)";
@@ -58,12 +57,37 @@ function getForm() {
     return document.querySelector(FORM_SELECTOR);
 }
 
-function getQuestion() {
-    return document.querySelector(QUESTION_SELECTOR).innerText;
-}
-
 function getUserName() {
     return document.querySelector(USER_NAME_SELECTOR).innerText;
+}
+
+function getQuestion() {
+    let questionContainer = document.querySelector("#responseform .formulation.clearfix");
+    return getTextNodesIn(questionContainer, false)
+        .map(text => text.nodeValue.trim())
+        .map(text => text.replace(/\s{2,}/), " ")
+        .filter(text => text.length > 0)
+        .sort()
+        .join(' ');
+}
+
+function getTextNodesIn(node, includeWhitespaceNodes) {
+    var textNodes = [], whitespace = /^\s*$/;
+
+    function getTextNodes(node) {
+        if (node.nodeType == 3) {
+            if (includeWhitespaceNodes || !whitespace.test(node.nodeValue)) {
+                textNodes.push(node);
+            }
+        } else {
+            for (var i = 0, len = node.childNodes.length; i < len; ++i) {
+                getTextNodes(node.childNodes[i]);
+            }
+        }
+    }
+
+    getTextNodes(node);
+    return textNodes;
 }
 
 // DOM manipulation
