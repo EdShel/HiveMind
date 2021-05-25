@@ -9,6 +9,7 @@ const hubConnection = new signalR.HubConnectionBuilder()
     .withUrl("https://25.86.139.29:5003/tests")
     .build();
 
+// When someone has answered...
 hubConnection.on("Answer", function (userName, question, answers) {
     console.log(`${userName} answered ${question} with ${answers}`);
 
@@ -17,20 +18,20 @@ hubConnection.on("Answer", function (userName, question, answers) {
         return;
     }
 
-    createAnswerButton(userName, answers);
+    showAnswer(userName, answers);
 });
 
+// When the page is loaded and we've asked for all other students answers
 hubConnection.on("Answers", function (json) {
     let answers = JSON.parse(json);
     console.log(answers);
     for (let answer of answers) {
-        createAnswerButton(answer.UserName, answer.Answers);
+        showAnswer(answer.UserName, answer.Answers);
     }
 })
 
+// For click on the next question button
 document.querySelector(ANSWER_BUTTON_SELECTOR)?.addEventListener('click', function (e) {
-    e.preventDefault();
-
     let serializedForm = serializeAnswers();
     if (!serializeAnswers) {
         return;
@@ -45,6 +46,8 @@ if (getForm() !== null) {
     addToCheckboxesPropertyCalledIsChecked();
 
     createAnswersContainer();
+    createCommentsContainer();
+
     hubConnection.start().then(function () {
         hubConnection.invoke("Answers", getQuestion());
     });
@@ -77,7 +80,9 @@ function createAnswersContainer() {
         = `<b>Answers of other students</b>`
         + `<div id=\"answersContainer\"></div>`;
     getForm().parentNode.append(element);
+}
 
+function createCommentsContainer() {
     let commentContainer = document.createElement("div");
 
     let commentField = document.createElement("textarea");
@@ -104,22 +109,30 @@ function getAnswersContainer() {
     return document.getElementById("answersContainer");
 }
 
-function createAnswerButton(userName, answer) {
-    let answerObject = JSON.parse(answer);
+function showAnswer(userName, answerJson) {
+    let answerObject = JSON.parse(answerJson);
     if (answerObject.type === "comment") {
-        let commentContainer = document.createElement("div");
-        commentContainer.innerHTML = `<b>${userName}: </b> ${answerObject.value}`;
-
-        getAnswersContainer().append(commentContainer);
+        createComment(userName, answerObject);
     } else {
-        let answerButton = document.createElement("button");
-        answerButton.innerHTML = userName;
-        answerButton.addEventListener('click', function () {
-            deserializeAnswers(answer);
-        });
-
-        getAnswersContainer().append(answerButton);
+        createAnswerButton(userName, answerJson);
     }
+}
+
+function createComment(userName, answer) {
+    let commentContainer = document.createElement("div");
+    commentContainer.innerHTML = `<b>${userName}: </b> ${answer.value}`;
+
+    getAnswersContainer().append(commentContainer);
+}
+
+function createAnswerButton(userName, answerJson) {
+    let answerButton = document.createElement("button");
+    answerButton.innerHTML = userName;
+    answerButton.addEventListener('click', function () {
+        deserializeAnswers(answerJson);
+    });
+
+    getAnswersContainer().append(answerButton);
 }
 
 // Answer serialize & deserialize
