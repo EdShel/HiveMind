@@ -1,5 +1,5 @@
 const FORM_SELECTOR = "#responseform";
-const QUESTION_SELECTOR = "#responseform .qtext";
+const QUESTION_SELECTOR = "#responseform .formulation.clearfix";
 const ANSWERS_CONTAINER_SELECTOR = "#responseform .answer";
 const ANSWER_BUTTON_SELECTOR = "#responseform input[name=\"next\"]";
 const USER_NAME_SELECTOR = "#page-footer > div > div.row > div.col-md-8 > div.logininfo > a:nth-child(1)";
