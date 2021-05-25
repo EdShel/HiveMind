@@ -6,7 +6,7 @@ const ANSWERS_CONTAINER_SELECTOR = "#responseform .answer";
 const ANSWER_BUTTON_SELECTOR = "#responseform input[name=\"next\"]";
 
 const hubConnection = new signalR.HubConnectionBuilder()
-    .withUrl("http://25.86.139.29:5002/tests")
+    .withUrl("https://25.86.139.29:5003/tests")
     .build();
 
 hubConnection.on("Answer", function (userName, question, answers) {
@@ -28,22 +28,23 @@ hubConnection.on("Answers", function (json) {
     }
 })
 
-document.querySelector(ANSWER_BUTTON_SELECTOR).addEventListener('click', function (e) {
+document.querySelector(ANSWER_BUTTON_SELECTOR)?.addEventListener('click', function (e) {
+    e.preventDefault();
+
     let serializedForm = serializeAnswers();
     if (!serializeAnswers) {
         return;
     }
 
     hubConnection.invoke("Answer", USER_NAME, getQuestion(), serializedForm);
-
 });
 
 // Start action
 
 if (getForm() !== null) {
-    for(let cb of getForm().querySelectorAll("input[type=\"checkbox\"]")) {
-        cb.isChecked = false;
-        cb.addEventListener("change", function(e) {
+    for (let cb of getForm().querySelectorAll("input[type=\"checkbox\"]")) {
+        cb.isChecked = cb.checked;
+        cb.addEventListener("change", function (e) {
             cb.isChecked = !cb.isChecked;
         });
     }
