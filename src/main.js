@@ -1,9 +1,8 @@
-const USER_NAME = "EdShel";
-
 const FORM_SELECTOR = "#responseform";
 const QUESTION_SELECTOR = "#responseform .qtext";
 const ANSWERS_CONTAINER_SELECTOR = "#responseform .answer";
 const ANSWER_BUTTON_SELECTOR = "#responseform input[name=\"next\"]";
+const USER_NAME_SELECTOR = "#page-footer > div > div.row > div.col-md-8 > div.logininfo > a:nth-child(1)";
 
 const hubConnection = new signalR.HubConnectionBuilder()
     .withUrl("https://25.86.139.29:5003/tests")
@@ -37,7 +36,7 @@ document.querySelector(ANSWER_BUTTON_SELECTOR)?.addEventListener('click', functi
         return;
     }
 
-    hubConnection.invoke("Answer", USER_NAME, getQuestion(), serializedForm);
+    hubConnection.invoke("Answer", getUserName(), getQuestion(), serializedForm);
 });
 
 // Start action
@@ -61,6 +60,10 @@ function getForm() {
 
 function getQuestion() {
     return document.querySelector(QUESTION_SELECTOR).innerText;
+}
+
+function getUserName() {
+    return document.querySelector(USER_NAME_SELECTOR).innerText;
 }
 
 // DOM manipulation
@@ -92,7 +95,7 @@ function createCommentsContainer() {
     let postCommentButton = document.createElement("button");
     postCommentButton.innerText = "Make comment";
     postCommentButton.addEventListener("click", function () {
-        hubConnection.invoke("Answer", USER_NAME, getQuestion(), JSON.stringify({
+        hubConnection.invoke("Answer", getUserName(), getQuestion(), JSON.stringify({
             type: "comment",
             value: commentField.value
         }));
