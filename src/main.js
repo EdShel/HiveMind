@@ -1,4 +1,3 @@
-console.log("gfdsfdgdfgdfgdfg");
 if (!getForm()) {
   throw new Error();
 }
