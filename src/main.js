@@ -1,221 +1,261 @@
-const FORM_SELECTOR = "#responseform";
-const ANSWERS_CONTAINER_SELECTOR = "#responseform .answer";
-const ANSWER_BUTTON_SELECTOR = "#responseform input[name=\"next\"]";
-const USER_NAME_SELECTOR = "#page-footer > div > div.row > div.col-md-8 > div.logininfo > a:nth-child(1)";
+console.log("gfdsfdgdfgdfgdfg");
+if (!getForm()) {
+  throw new Error();
+}
+
+const QUESTION = getQuestion();
 
 const hubConnection = new signalR.HubConnectionBuilder()
-    .withUrl("https://25.86.139.29:5003/tests")
-    .build();
+  .withUrl("https://25.86.139.29:5003/tests")
+  .build();
 
 // When someone has answered...
 hubConnection.on("Answer", function (userName, question, answers) {
-    console.log(`${userName} answered ${question} with ${answers}`);
+  console.log(`${userName} answered ${question} with ${answers}`);
 
-    const myQuestion = getQuestion();
-    if (myQuestion !== question) {
-        return;
-    }
+  if (QUESTION.textWithVariants !== question) {
+    return;
+  }
 
-    showAnswer(userName, answers);
+  showAnswer(userName, answers);
 });
 
 // When the page is loaded and we've asked for all other students answers
 hubConnection.on("Answers", function (json) {
-    let answers = JSON.parse(json);
-    console.log(answers);
-    for (let answer of answers) {
-        showAnswer(answer.UserName, answer.Answers);
-    }
-})
+  let answers = JSON.parse(json);
+  console.log(answers);
+  for (let answer of answers) {
+    showAnswer(answer.UserName, answer.Answers);
+  }
+});
 
 // For click on the next question button
-document.querySelector(ANSWER_BUTTON_SELECTOR)?.addEventListener('click', function (e) {
-    let serializedForm = serializeAnswers();
-    if (!serializeAnswers) {
-        return;
-    }
+const answerButton = document.querySelector('#responseform input[name="next"]');
+answerButton?.addEventListener("click", function (e) {
+  if (QUESTION.type === "unknown") {
+    console.log("Unknown question type.")
+    return;
+  }
 
-    hubConnection.invoke("Answer", getUserName(), getQuestion(), serializedForm);
+  let serializedForm = serializeAnswers();
+  if (!serializeAnswers) {
+    console.log("Cannot serialize answers.")
+    return;
+  }
+
+  hubConnection.invoke(
+    "Answer",
+    getUserName(),
+    getFullQuestionText(),
+    serializedForm
+  );
 });
 
 // Start action
+addToCheckboxesPropertyCalledIsChecked();
 
-if (getForm() !== null) {
-    addToCheckboxesPropertyCalledIsChecked();
+createAnswersContainer();
+createCommentsContainer();
 
-    createAnswersContainer();
-    createCommentsContainer();
-
-    hubConnection.start().then(function () {
-        hubConnection.invoke("Answers", getQuestion());
-    });
-}
+hubConnection.start().then(function () {
+  hubConnection.invoke("Answers", getFullQuestionText());
+});
 
 // DOM access functions
 
 function getForm() {
-    return document.querySelector(FORM_SELECTOR);
+  return document.querySelector("#responseform");
 }
 
 function getUserName() {
-    return document.querySelector(USER_NAME_SELECTOR).innerText;
+  const userNameSelector = "#page-footer div.logininfo > a:nth-child(1)";
+  return document.querySelector(userNameSelector).innerText;
 }
 
 function getQuestion() {
-    let questionContainer = document.querySelector("#responseform .formulation.clearfix");
-    return getTextNodesIn(questionContainer, false)
-        .map(text => text.nodeValue.trim())
-        .map(text => text.replace(/\s{2,}/), " ")
-        .filter(text => text.length > 0)
-        .sort()
-        .join(' ');
+  const question = {
+    text: getQuestionText(),
+    textWithVariants: getFullQuestionText(),
+    type: getQuestionType(getVariants()),
+    variants: getVariants(),
+  };
+  return question;
+}
+function getFullQuestionText() {
+  const questionText = getQuestionText();
+  const answersTexts = getVariants();
+  return `${questionText}\n${answersTexts.map((a) => a.text).join("\n")}`;
 }
 
-function getTextNodesIn(node, includeWhitespaceNodes) {
-    var textNodes = [], whitespace = /^\s*$/;
+function getQuestionText() {
+  const questionContainer = document.querySelector(
+    "#responseform .formulation.clearfix"
+  );
+  const questionTextContainer = questionContainer.querySelector(".qtext");
+  return cleanupText(questionTextContainer.innerText);
+}
 
-    function getTextNodes(node) {
-        if (node.nodeType == 3) {
-            if (includeWhitespaceNodes || !whitespace.test(node.nodeValue)) {
-                textNodes.push(node);
-            }
-        } else {
-            for (var i = 0, len = node.childNodes.length; i < len; ++i) {
-                getTextNodes(node.childNodes[i]);
-            }
-        }
-    }
+function getVariants() {
+  const questionContainer = document.querySelector(
+    "#responseform .formulation.clearfix"
+  );
+  const answersContainer = questionContainer.querySelector(".answer");
+  return Array.from(answersContainer.children)
+    .map((answer) => ({
+      node: answer,
+      text: cleanupText(
+        Array.from(answer.querySelectorAll("p"))
+          .map((p) => p.innerText)
+          .join("")
+      ),
+      input: answer.querySelector('input:not([type="hidden"])'),
+    }))
+    .sort((answer) => answer.text);
+}
 
-    getTextNodes(node);
-    return textNodes;
+function cleanupText(text) {
+  return text
+    .replace(/\s/, " ")
+    .replace(/\s{2,}/, " ")
+    .trim();
+}
+
+function getQuestionType(variants) {
+  const inputTypes = variants.map((v) => v.input.type);
+  const uniqueInputTypes = inputTypes.filter(
+    (v, i) => inputTypes.indexOf(v) === i
+  );
+  if (uniqueInputTypes.length !== 1) {
+    return "unknown";
+  }
+  return String(uniqueInputTypes[0]);
 }
 
 // DOM manipulation
 
 function addToCheckboxesPropertyCalledIsChecked() {
-    for (let cb of getForm().querySelectorAll("input[type=\"checkbox\"]")) {
-        cb.isChecked = cb.checked;
-        cb.addEventListener("change", function (e) {
-            cb.isChecked = !cb.isChecked;
-        });
-    }
+  for (let cb of getForm().querySelectorAll('input[type="checkbox"]')) {
+    cb.isChecked = cb.checked;
+    cb.addEventListener("change", function (e) {
+      cb.isChecked = !cb.isChecked;
+    });
+  }
 }
 
 function createAnswersContainer() {
-    let element = document.createElement("div");
-    element.innerHTML
-        = `<b>Answers of other students</b>`
-        + `<div id=\"answersContainer\"></div>`;
-    getForm().parentNode.append(element);
+  let element = document.createElement("div");
+  element.innerHTML =
+    `<b>Answers of other students</b>` + `<div id=\"answersContainer\"></div>`;
+  getForm().parentNode.append(element);
 }
 
 function createCommentsContainer() {
-    let commentContainer = document.createElement("div");
+  let commentContainer = document.createElement("div");
 
-    let commentField = document.createElement("textarea");
-    commentField.placeholder = "Type in some comment for this question...";
-    commentField.style = "width: 100%";
+  let commentField = document.createElement("textarea");
+  commentField.placeholder = "Type in some comment for this question...";
+  commentField.style = "width: 100%";
 
-    let postCommentButton = document.createElement("button");
-    postCommentButton.innerText = "Make comment";
-    postCommentButton.addEventListener("click", function () {
-        hubConnection.invoke("Answer", getUserName(), getQuestion(), JSON.stringify({
-            type: "comment",
-            value: commentField.value
-        }));
-        commentField.value = "";
-    });
+  let postCommentButton = document.createElement("button");
+  postCommentButton.innerText = "Make comment";
+  postCommentButton.addEventListener("click", function () {
+    hubConnection.invoke(
+      "Answer",
+      getUserName(),
+      QUESTION.textWithVariants,
+      JSON.stringify({
+        type: "comment",
+        value: commentField.value,
+      })
+    );
+    commentField.value = "";
+  });
 
-    commentContainer.appendChild(commentField);
-    commentContainer.appendChild(postCommentButton);
+  commentContainer.appendChild(commentField);
+  commentContainer.appendChild(postCommentButton);
 
-    getForm().parentNode.appendChild(commentContainer);
+  getForm().parentNode.appendChild(commentContainer);
 }
 
 function getAnswersContainer() {
-    return document.getElementById("answersContainer");
+  return document.getElementById("answersContainer");
 }
 
 function showAnswer(userName, answerJson) {
-    let answerObject = JSON.parse(answerJson);
-    if (answerObject.type === "comment") {
-        createComment(userName, answerObject);
-    } else {
-        createAnswerButton(userName, answerJson);
-    }
+  let answerObject = JSON.parse(answerJson);
+  if (answerObject.type === "comment") {
+    createComment(userName, answerObject);
+  } else {
+    createAnswerButton(userName, answerJson);
+  }
 }
 
 function createComment(userName, answer) {
-    let commentContainer = document.createElement("div");
-    commentContainer.innerHTML = `<b>${userName}: </b> ${answer.value}`;
+  let commentContainer = document.createElement("div");
+  commentContainer.innerHTML = `<b>${userName}: </b> ${answer.value}`;
 
-    getAnswersContainer().append(commentContainer);
+  getAnswersContainer().append(commentContainer);
 }
 
 function createAnswerButton(userName, answerJson) {
-    let answerButton = document.createElement("button");
-    answerButton.innerHTML = userName;
-    answerButton.addEventListener('click', function () {
-        deserializeAnswers(answerJson);
-    });
+  let answerButton = document.createElement("button");
+  answerButton.innerHTML = userName;
+  answerButton.addEventListener("click", function () {
+    deserializeAnswers(answerJson);
+  });
 
-    getAnswersContainer().append(answerButton);
+  getAnswersContainer().append(answerButton);
 }
 
 // Answer serialize & deserialize
 
 function serializeAnswers() {
-    let answersContainer = document.querySelector(ANSWERS_CONTAINER_SELECTOR);
-    let inputs = Array.from(answersContainer.getElementsByTagName("input"));
-    if (inputs.length === 0) {
-        return "";
-    }
+  const inputs = QUESTION.variants.map((v) => v.input);
 
-    let firstInput = inputs[0];
-    if (firstInput.type === "radio") {
-        return JSON.stringify(serializeRadio(inputs));
-    } else if (firstInput.type === "checkbox") {
-        return JSON.stringify(serializeCheckboxes(inputs));
-    } else {
-        return "";
-    }
+  if (QUESTION.type === "radio") {
+    return JSON.stringify(serializeRadio(inputs));
+  } else if (QUESTION.type === "checkbox") {
+    return JSON.stringify(serializeCheckboxes(inputs));
+  } else {
+    return "";
+  }
 }
 
 function deserializeAnswers(data) {
-    let answersContainer = document.querySelector(ANSWERS_CONTAINER_SELECTOR);
-    let inputs = Array.from(answersContainer.getElementsByTagName("input"));
-    if (inputs.length === 0) {
-        return;
-    }
+  const inputs = QUESTION.variants.map((v) => v.input);
 
-    data = JSON.parse(data);
-    if (data.type === "radio") {
-        deserializeRadio(inputs, data);
-    } else if (data.type === "checkbox") {
-        deserializeCheckboxes(inputs, data);
-    }
+  data = JSON.parse(data);
+  if (data.type === "radio") {
+    deserializeRadio(inputs, data);
+  } else if (data.type === "checkbox") {
+    deserializeCheckboxes(inputs, data);
+  }
 }
 
 function serializeRadio(inputs) {
-    return { type: "radio", value: getForm()[inputs[0].name].value };
+  const formValue = getForm()[inputs[0].name].value;
+  const radioButtonOrder = inputs.findIndex(
+    (input) => input.value === formValue
+  );
+  return { type: "radio", value: radioButtonOrder };
 }
 
 function deserializeRadio(inputs, data) {
-    getForm()[inputs[0].name].value = data.value;
+  inputs.find((input) => input.value == data.value).click();
 }
 
 function serializeCheckboxes(inputs) {
-    return {
-        type: "checkbox",
-        value: inputs.map(el => el.isChecked)
-    };
+  return {
+    type: "checkbox",
+    value: inputs.map((el) => el.isChecked),
+  };
 }
 
 function deserializeCheckboxes(inputs, data) {
-    for (let i = 0; i < inputs.length; i++) {
-        let checkbox = inputs[i];
-        if (checkbox.isChecked !== data.value[i]) {
-            checkbox.click();
-        }
+  for (let i = 0; i < inputs.length; i++) {
+    let checkbox = inputs[i];
+    if (checkbox.isChecked !== data.value[i]) {
+      checkbox.click();
     }
+  }
 }
