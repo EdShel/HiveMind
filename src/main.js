@@ -1,3 +1,5 @@
+document.body.style = 'background-color: #e38c00'
+
 if (!getForm()) {
   throw new Error();
 }
